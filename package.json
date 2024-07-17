@@ -7,7 +7,7 @@
     "url": "(https://github.com/song9537/youtube-clone)"
   },
   "scripts": {
-    "dev": "nodemon --exec babel-node src/server.js"
+    "dev": "nodemon --exec babel-node src/init.js"
   },
   "author": "Brian Song<brian.song0106@gmail.com>",
   "license": "MIT",
