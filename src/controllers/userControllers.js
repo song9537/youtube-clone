@@ -41,7 +41,7 @@ export const getLogin = (req, res) =>
 
 export const postLogin = async (req, res) => {
   const { username, password } = req.body;
-  const user = await User.findOne({ username });
+  const user = await User.findOne({ username, socialOnly: false });
   if (!user) {
     return res.status(400).render("login", {
       pageTitle: "Login",
@@ -99,7 +99,6 @@ export const finishGithubLogin = async (req, res) => {
         },
       })
     ).json();
-    console.log(userData);
     const emailData = await (
       await fetch(`${apiUrl}/user/emails`, {
         headers: {
@@ -113,13 +112,10 @@ export const finishGithubLogin = async (req, res) => {
     if (!emailObj) {
       return res.redirect("/login");
     }
-    const existingUser = await User.findOne({ email: emailObj.email });
-    if (existingUser) {
-      req.session.loggedIn = true;
-      req.session.user = existingUser;
-      return res.redirect("/");
-    } else {
-      const user = await User.create({
+    let user = await User.findOne({ email: emailObj.email });
+    if (!user) {
+      user = await User.create({
+        avatarUrl: userData.avatar_url,
         name: userData.name,
         username: userData.login,
         email: emailObj.email,
@@ -127,16 +123,58 @@ export const finishGithubLogin = async (req, res) => {
         socialOnly: true,
         location: userData.location,
       });
-      req.session.loggedIn = true;
-      req.session.user = user;
-      return res.redirect("/");
     }
+    req.session.loggedIn = true;
+    req.session.user = user;
+    return res.redirect("/");
   } else {
     return res.redirect("/login");
   }
 };
 
-export const edit = (req, res) => res.send("Edit User");
-export const remove = (req, res) => res.send("Delete User");
-export const logout = (req, res) => res.send("Logout");
+export const logout = (req, res) => {
+  req.session.destroy();
+  return res.redirect("/");
+};
+
+export const getEdit = (req, res) => {
+  return res.render("edit-profile", {
+    pageTitle: "Edit Profile",
+  });
+};
+
+export const postEdit = async (req, res) => {
+  const {
+    session: {
+      user: { _id },
+    },
+    body: { name, email, username, location },
+  } = req;
+  const updatedUser = await User.findByIdAndUpdate(
+    _id,
+    {
+      name,
+      email,
+      username,
+      location,
+    },
+    { new: true }
+  );
+  const exists = await User.exists({ $or: [{ username }, { email }] });
+  if (exists) {
+    return res.status(400).render("edit-profile", {
+      pageTitle: "Edit Profile",
+      errorMessage: "This username/email is already taken.",
+    });
+  }
+  req.session.user = updatedUser;
+  return res.redirect("/users/edit");
+};
+
+export const getChangePassword = (req, res) => {
+  return res.render("users/change-password", { pageTitle: "Change Password" });
+};
+export const postChangePassword = (req, res) => {
+  return res.redirect("/");
+};
 export const see = (req, res) => res.send("See");
