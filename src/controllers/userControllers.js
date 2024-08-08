@@ -29,8 +29,8 @@ export const postJoin = async (req, res) => {
     });
     return res.redirect("/login");
   } catch (error) {
-    return res.status(400).render("upload", {
-      pageTitle: "Upload Video",
+    return res.status(400).render("join", {
+      pageTitle: "Join",
       errorMessage: error._message,
     });
   }
@@ -146,13 +146,27 @@ export const getEdit = (req, res) => {
 export const postEdit = async (req, res) => {
   const {
     session: {
-      user: { _id },
+      user: { _id, avatarUrl },
     },
     body: { name, email, username, location },
+    file,
   } = req;
+
+  const exists = await User.exists({
+    _id: { $ne: _id },
+    $or: [{ username }, { email }],
+  });
+  if (exists) {
+    return res.status(400).render("edit-profile", {
+      pageTitle: "Edit Profile",
+      errorMessage: "This username/email is already taken.",
+    });
+  }
+
   const updatedUser = await User.findByIdAndUpdate(
     _id,
     {
+      avatarUrl: file ? file.path : avatarUrl,
       name,
       email,
       username,
@@ -160,13 +174,7 @@ export const postEdit = async (req, res) => {
     },
     { new: true }
   );
-  const exists = await User.exists({ $or: [{ username }, { email }] });
-  if (exists) {
-    return res.status(400).render("edit-profile", {
-      pageTitle: "Edit Profile",
-      errorMessage: "This username/email is already taken.",
-    });
-  }
+
   req.session.user = updatedUser;
   return res.redirect("/users/edit");
 };
